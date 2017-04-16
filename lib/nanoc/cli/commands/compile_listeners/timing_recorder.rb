@@ -82,6 +82,20 @@ module Nanoc::CLI::Commands::CompileListeners
         @telemetry.summary(:phases).observe(stopwatch.duration, phase_name)
       end
 
+      load_store_stopwatches = {}
+
+      on(:load_store_started) do |load_store_name, rep|
+        stopwatches = load_store_stopwatches.fetch(rep) { load_store_stopwatches[rep] = {} }
+        stopwatches[load_store_name] = Nanoc::Telemetry::Stopwatch.new.tap(&:start)
+      end
+
+      on(:load_store_ended) do |load_store_name, rep|
+        stopwatch = load_store_stopwatches.fetch(rep).fetch(load_store_name)
+        stopwatch.stop
+
+        @telemetry.summary(:load_stores).observe(stopwatch.duration, load_store_name)
+      end
+
       on(:phase_yielded) do |phase_name, rep|
         stopwatch = phase_stopwatches.fetch(rep).fetch(phase_name)
         stopwatch.stop
@@ -169,6 +183,7 @@ module Nanoc::CLI::Commands::CompileListeners
       print_table_for_summary(:phases) if Nanoc::CLI.verbosity >= 2
       print_table_for_summary_duration(:stages) if Nanoc::CLI.verbosity >= 2
       print_table_for_summary(:outdatedness_rules) if Nanoc::CLI.verbosity >= 2
+      table_for_summary_durations(:load_stores) if Nanoc::CLI.verbosity >= 2
       print_table_for_memoization if Nanoc::CLI.verbosity >= 2
     end
 
